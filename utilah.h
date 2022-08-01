@@ -59,7 +59,7 @@ void mx_free( matx* m)
 {
   if (m->newmatrix == 1) free( m->rptr[0]);
   free(m->rptr); m->rptr=NULL;
-  free( m); 
+  free( m);
 }
 
 matx* mx_clone(matx* a)
@@ -260,9 +260,9 @@ double mx_find(matx* a, double value)
      for (y=0; y < a->rows; y++)
      {
         if (a->rptr[x][y]==value) sum=sum+1;
-     } 
-    
-   return sum;     
+     }
+
+   return sum;
 }
 
 void mx_clear(matx* a)
@@ -359,12 +359,12 @@ double mx_corr(matx* a, matx* b)
 {
   register int x,y;
   double meanA, meanB, sumAB=0.0, sumA2=0.0, sumB2=0.0;
-  
+
   if (a->rows != b->rows || a->cols != b->cols) return 0.0;
-  
+
   meanA = mx_mean(a);
   meanB= mx_mean(b);
-  
+
   for(x=0; x < a->cols; x++)
     for (y=0; y < a->rows; y++)
     {
@@ -372,7 +372,6 @@ double mx_corr(matx* a, matx* b)
       sumA2=sumA2+((a->rptr[x][y]-meanA)*(a->rptr[x][y]-meanA));
       sumB2=sumB2+((b->rptr[x][y]-meanB)*(b->rptr[x][y]-meanB));
     }
-   
+
   return sumAB/(sqrt(sumA2*sumB2));
 }
-

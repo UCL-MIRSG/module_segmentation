@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from scipy import io as sio
+
 from segment_image import segment_image
 
 _file_location = Path(__file__).resolve()
@@ -15,28 +16,18 @@ def main() -> None:
     proj_im = sio.loadmat(_matfile)["ProjIm"]
 
     # crop image for testing
-    crop = proj_im[300:500, 400:600]
-
-    # compute segmentation and output segmentation feedback
-    first_smoothing_seeding = 0.5
-    min_cell_area = 2
-    min_membrane_intensity = 20
-    min_border_intensity_ratio = 0.0
-    second_smoothing_segmentation = 0.5
-    max_cell_area = 3000
-    min_seed_per_boundary = 0.1
-    segmentation_feedback_plot = True
+    cropped_image = proj_im[300:500, 400:600]
 
     segmentation, seeds, labels = segment_image(
-        crop,
-        first_smoothing_seeding,
-        min_cell_area,
-        min_membrane_intensity,
-        min_border_intensity_ratio,
-        second_smoothing_segmentation,
-        max_cell_area,
-        min_seed_per_boundary,
-        segmentation_feedback_plot,
+        cropped_image,
+        sigma_1=0.5,
+        min_cell_size=2,
+        threshold=20,
+        merge_criteria=0.0,
+        sigma_3=0.5,
+        large_cell_size_thres=3000,
+        i_bound_max_pcnt=0.1,
+        show_feedback=True,
     )
 
 

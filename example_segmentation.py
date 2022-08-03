@@ -26,7 +26,7 @@ def main() -> None:
         merge_criteria=0.0,
         sigma_3=0.5,
         large_cell_size_thres=3000,
-        i_bound_max_pcnt=0.1,
+        I_bound_max_pcnt=0.1,
         show_feedback=True,
     )
 

@@ -20,9 +20,9 @@ def segment_image(
     merge_criteria: float,
     sigma_3: float,
     large_cell_size_thres: float,
-    i_bound_max_pcnt: float,
+    I_bound_max_pcnt: float,
     show_feedback: bool = False
-) -> tuple[npt.NDArray[np.uint8], npt.NDArray[np.uint16], npt.NDArray[np.uint8]]:
+) -> tuple[npt.NDArray[np.uint8], npt.NDArray[np.uint8], npt.NDArray[np.uint16]]:
     """
     Segments a single frame extracting the cell outlines.
 
@@ -41,7 +41,7 @@ def segment_image(
         size px of gaussian for smoothing image [0+]
       large_cell_size_thres:
         size px of largest cell expected [0+]
-      i_bound_max_pcnt:
+      I_bound_max_pcnt:
         minimum ratio for seed and membrane intensity [0-1]
       show_feedback:
         show feedback for segmentation
@@ -65,14 +65,16 @@ def segment_image(
     image *= 252 / image.max()
     image = image.astype(np.uint8)
 
-    do_initial_seeding(sigma_1, min_cell_size, threshold)
+    do_initial_seeding(image, sigma_1, min_cell_size, threshold, large_cell_size_thres)
 
-    merge_seeds_from_labels(merge_criteria, sigma_3)
+    merge_seeds_from_labels(image, cell_seeds, cell_labels, merge_criteria, sigma_3)
 
-    grow_cells_in_frame(sigma_3)
+    grow_cells_in_frame(image, cell_seeds, sigma_3)
 
-    unlabel_poor_seeds_in_frame(threshold, sigma_3)
+    unlabel_poor_seeds_in_frame(
+        image, cell_seeds, cell_labels, threshold, sigma_3, I_bound_max_pcnt
+    )
 
-    neutralise_pts_not_under_label_in_frame(cell_labels, cell_seeds, value=253)
+    neutralise_pts_not_under_label_in_frame(cell_seeds, cell_labels)
 
-    create_color_boundaries()
+    create_color_boundaries(image, cell_seeds, cell_labels)

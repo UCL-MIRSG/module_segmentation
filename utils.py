@@ -14,15 +14,14 @@ def create_color_boundaries(
     # given that every cell has a different label we can compute
     # the boundaries by computing where the gradient changes
     cell_labels = cell_labels.astype(float)
-    gx, gy = np.gradient(cell_labels)
-    cell_outlines = (cell_labels > 0) & ((gx**2 + gy**2) > 0)
+    gy, gx = np.gradient(cell_labels)
+    cell_outlines = (cell_labels > 0) & ((gx ** 2 + gy ** 2) > 0)
 
-    cell_seeds = cell_seeds > 253
+    cell_seeds_mask = cell_seeds > 253
 
-    segmented_image = image.copy()
-    segmented_image[cell_outlines] = 0
-    segmented_image[cell_seeds] = 255
-    return segmented_image
+    image[cell_outlines] = 0
+    image[cell_seeds_mask] = 255
+    return image
 
 
 def do_initial_seeding(

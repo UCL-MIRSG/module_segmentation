@@ -159,7 +159,7 @@ def unlabel_poor_seeds_in_frame(
         #     than 20% intensity difference to the mean
         #   => If the cell boundary is low and not very different
         #      from the seed, cancel the region
-        first_condition = I_bound < I_bound_max & I_bound / ICentre < 1.2
+        first_condition = (I_bound < I_bound_max) & (I_bound / ICentre < 1.2)
         # 2. W/o (1.b) the lower bound is reduced by ~17% (1 - 0.833) to be decisive
         second_condition = I_bound < I_bound_max * 5 / 6
         # 3. If the minimum retrieved in the boundary mask is 0 (dangerous!)
@@ -187,26 +187,21 @@ def unlabel_poor_seeds_in_frame(
 
 def delabel_very_large_areas(
     cell_labels: npt.NDArray[np.uint16], large_cell_size_thres: float
-) -> None:
-    """ """
-    # remove cells which are bigger than large_cell_size_thres
-    L = cell_labels
-    dim_init_L = len(L)
-    A = regionprops(L, "area")
-    As = cat(1, A.Area)
-    ls = np.unique(L)
-    for i in range(len(ls)):
-        l = ls[i]
+) -> npt.NDArray[np.uint16]:
+    """
+    remove cells which are bigger than large_cell_size_thres
+    """
+    As = [r.area for r in regionprops(cell_labels, cache=False)]
+    ls = np.unique(cell_labels)
+    for l in range(len(ls)):
         if l == 0:
             continue
 
         A = As[l]
         if A > large_cell_size_thres:
-            L[L == l] = 0
+            cell_labels[cell_labels == l] = 0
 
-    dim_final_L = len(L)
-
-    cell_labels = L
+    return cell_labels
 
 
 def merge_seeds_from_labels(
@@ -313,7 +308,7 @@ def merge_seeds_from_labels(
 
         merge_intensity_distro = [merge_intensity_distro, worst_intensity_ratio]
 
-        if worst_intensity_ratio > merge_criteria & label != 0 & neighb_label != 0:
+        if (worst_intensity_ratio > merge_criteria) & label != 0 & neighb_label != 0:
 
             merge_labels(cell_seeds, cell_labels, label, neighb_label)
             label_list = np.unique(cell_labels)
@@ -350,7 +345,7 @@ def merge_labels(
     # background level
     cell_seeds[cpy1, cpx1] = 20
     cell_seeds[cpy2, cpx2] = 20
-    if cell_labels[cpy, cpx] == l1 | cell_labels[cpy, cpx] == l2:
+    if (cell_labels[cpy, cpx] == l1) | (cell_labels[cpy, cpx] == l2):
         cell_seeds[cpy, cpx] = 255
     elif np.sum(m1) > np.sum(m2):
         cell_seeds[cpy1, cpx1] = 255

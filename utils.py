@@ -15,7 +15,7 @@ def create_color_boundaries(
     # the boundaries by computing where the gradient changes
     cell_labels = cell_labels.astype(float)
     gy, gx = np.gradient(cell_labels)
-    cell_outlines = (cell_labels > 0) & ((gx ** 2 + gy ** 2) > 0)
+    cell_outlines = (cell_labels > 0) & ((gx**2 + gy**2) > 0)
 
     cell_seeds_mask = cell_seeds > 253
 
@@ -383,7 +383,7 @@ def calculateCellPositions():
     pass
 
 
-def _matlab_style_gauss2D(shape: tuple[int, int], sigma: float):
+def _matlab_style_gauss2D(shape: tuple[int, ...], sigma: float):
     """
     2D gaussian mask - should give the same result as MATLAB's
     fspecial('gaussian', [shape], [sigma])

@@ -359,19 +359,17 @@ def merge_labels(
 def neutralise_pts_not_under_label_in_frame(
     cell_seeds: npt.NDArray[np.uint8],
     cell_labels: npt.NDArray[np.uint16],
-) -> None:
+) -> npt.NDArray[np.uint8]:
     """
     Seeds whose label has been eliminated are converted to neutral seeds
 
     the idea here is to set seeds not labelled to a value
     ie invisible to retracking (and to growing, caution!)
     """
-    L = cell_labels
-    F = cell_seeds
-    F2 = F
-    F2[L != 0] = 0
-    F[F2 > 252] = 253
-    cell_seeds = F
+    cell_seeds_copy = cell_seeds.copy()
+    cell_seeds_copy[cell_labels != 0] = 0
+    cell_seeds[cell_seeds_copy > 252] = 253
+    return cell_seeds
 
 
 def growcellsfromseeds3():
@@ -392,9 +390,9 @@ def _matlab_style_gauss2D(shape: tuple[int, int], sigma: float):
     fspecial('gaussian', [shape], [sigma])
     """
     m, n = [(ss - 1) / 2 for ss in shape]
-    y,x = np.ogrid[-m:m+1,-n:n+1]
+    y, x = np.ogrid[-m : m + 1, -n : n + 1]
     h = np.exp(-(x * x + y * y) / (2 * sigma * sigma))
-    h[h < np.finfo(h.dtype).eps*h.max()] = 0
+    h[h < np.finfo(h.dtype).eps * h.max()] = 0
     sumh = h.sum()
     if sumh != 0:
         h /= sumh

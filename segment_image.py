@@ -1,5 +1,6 @@
 import numpy as np
 import numpy.typing as npt
+from skimage.morphology import disk
 
 from utils import (
     create_color_boundaries,
@@ -65,16 +66,21 @@ def segment_image(
     image *= 252 / image.max()
     image = image.astype(np.uint8)
 
+    # structuring element, SE, used for morphological operations
+    se = disk(2)
+
     do_initial_seeding(image, sigma_1, min_cell_size, threshold, large_cell_size_thres)
 
-    merge_seeds_from_labels(image, cell_seeds, cell_labels, merge_criteria, sigma_3)
+    merge_seeds_from_labels(image, cell_seeds, cell_labels, se, merge_criteria, sigma_3)
 
     grow_cells_in_frame(image, cell_seeds, sigma_3)
 
     unlabel_poor_seeds_in_frame(
-        image, cell_seeds, cell_labels, threshold, sigma_3, I_bound_max_pcnt
+        image, cell_seeds, cell_labels, se, threshold, sigma_3, I_bound_max_pcnt
     )
 
     neutralise_pts_not_under_label_in_frame(cell_seeds, cell_labels)
 
     create_color_boundaries(image, cell_seeds, cell_labels)
+
+    return image, cell_seeds, cell_labels

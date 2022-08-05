@@ -1,6 +1,13 @@
 import numpy as np
 import numpy.typing as npt
 from skimage.measure import regionprops
+from skimage.morphology import binary_dilation, binary_erosion
+
+SIGMA_BOUND = 0.01
+# TODO: work out what these are for and give better names
+TWO_FIVE_FIVE = 255
+TWO_FIVE_THREE = 253
+TWO_FIVE_TWO = 252
 
 
 def create_color_boundaries(
@@ -17,10 +24,10 @@ def create_color_boundaries(
     gy, gx = np.gradient(cell_labels)
     cell_outlines = (cell_labels > 0) & ((gx**2 + gy**2) > 0)
 
-    cell_seeds_mask = cell_seeds > 253
+    cell_seeds_mask = cell_seeds > TWO_FIVE_THREE
 
     image[cell_outlines] = 0
-    image[cell_seeds_mask] = 255
+    image[cell_seeds_mask] = TWO_FIVE_FIVE
     return image
 
 
@@ -30,12 +37,12 @@ def do_initial_seeding(
     min_cell_size: float,
     threshold: int,
     large_cell_size_thres: float,
-) -> None:
+) -> npt.NDArray[np.uint8]:
     """
     Find the initial cell seeds
     """
     # Create gaussian filter
-    if sigma_1 > 0.01:
+    if sigma_1 > SIGMA_BOUND:
         f1 = _matlab_style_gauss2D(image.shape, sigma_1)
 
         # Gaussian smoothing for the segmentation of individual cells
@@ -45,7 +52,7 @@ def do_initial_seeding(
     else:
         smoothed_image = image.astype(float)
 
-    smoothed_image /= smoothed_image.max() * 252
+    smoothed_image /= smoothed_image.max() * TWO_FIVE_TWO
 
     # Use external c-code to find initial seeds
     initial_labelling = findcellsfromregiongrowing(
@@ -65,22 +72,22 @@ def do_initial_seeding(
     centroids = np.round(calculateCellPositions(smoothed_image, cell_labels, False))
     centroids = centroids[~np.isnan(centroids.T[0])]
     for n in range(len(centroids)):
-        smoothed_image[centroids[n, 1], centroids[n, 0]] = 255
+        smoothed_image[centroids[n, 1], centroids[n, 0]] = TWO_FIVE_FIVE
 
     # cell_seeds contains the position of the true cell center.
-    cell_seeds = smoothed_image.astype(np.uint8)
+    return smoothed_image.astype(np.uint8)
 
 
 def grow_cells_in_frame(
     image: npt.NDArray[np.uint8], cell_seeds: npt.NDArray[np.uint8], sigma_3: float
-) -> None:
+) -> npt.NDArray[np.uint16]:
     """
     Growing cells from seeds TODO: add paramters in Name description!
     """
     # find labels
-    bw = (cell_seeds > 252).astype(float)
+    bw = (cell_seeds > TWO_FIVE_TWO).astype(float)
 
-    if sigma_3 > 0.01:
+    if sigma_3 > SIGMA_BOUND:
         f1 = _matlab_style_gauss2D(image.shape, sigma_3)
         smoothed_image = np.fft.fftshift(
             np.fft.ifft2(np.fft.fft2(image) * np.fft.fft2(f1))
@@ -89,14 +96,15 @@ def grow_cells_in_frame(
         smoothed_image = image.astype(float)
 
     # mark labels on image
-    image_with_seeds = (smoothed_image).astype(float) * (1 - bw) + 255 * bw
-    cell_labels = growcellsfromseeds3(image_with_seeds, 253).astype(np.uint16)
+    image_with_seeds = (smoothed_image).astype(float) * (1 - bw) + TWO_FIVE_FIVE * bw
+    return growcellsfromseeds3(image_with_seeds, TWO_FIVE_THREE).astype(np.uint16)
 
 
 def unlabel_poor_seeds_in_frame(
     image: npt.NDArray[np.uint8],
     cell_seeds: npt.NDArray[np.uint8],
     cell_labels: npt.NDArray[np.uint16],
+    se: npt.NDArray[np.uint8],
     threshold: int,
     sigma_3: float,
     I_bound_max_pcnt: float,
@@ -106,7 +114,7 @@ def unlabel_poor_seeds_in_frame(
     """
     L = cell_labels
 
-    if sigma_3 > 0.01:
+    if sigma_3 > SIGMA_BOUND:
         f1 = _matlab_style_gauss2D(image.shape, sigma_3)
         smoothed_image = np.fft.fftshift(
             np.fft.ifft2(np.fft.fft2(image) * np.fft.fft2(f1))
@@ -122,35 +130,30 @@ def unlabel_poor_seeds_in_frame(
 
     for c in range(len(label_list)):
         mask = L == label_list[c]
-        cpy, cpx = np.argwhere(mask > 0)
+        cpy, cpx = np.argwhere(mask > 0).T
         # find region of that label
-        minx = np.min(cpx)
-        maxx = np.max(cpx)
-        miny = np.min(cpy)
-        maxy = np.max(cpy)
-        minx = np.max(minx - 5, 1)
-        miny = np.max(miny - 5, 1)
-        maxx = np.min(maxx + 5, image.shape[1])
-        maxy = np.min(maxy + 5, image.shape[0])
+        minx = max(cpx.min() - 5, 0)
+        miny = max(cpy.min() - 5, 0)
+        maxx = min(cpx.max() + 5, image.shape[1] - 1)
+        maxy = min(cpy.max() + 5, image.shape[0] - 1)
         # reduced to region of the boundary
-        reduced_mask = mask[miny:maxy, minx:maxx]
-        reduced_image = smoothed_image[miny:maxy, minx:maxx]
-        dilated_mask = imdilate(reduced_mask, se)
-        eroded_mask = imerode(reduced_mask, se)
-        boundary_mask = dilated_mask - eroded_mask
+        reduced_mask = mask[miny : maxy + 1, minx : maxx + 1]
+        reduced_image = smoothed_image[miny : maxy + 1, minx : maxx + 1]
+        dilated_mask = binary_dilation(reduced_mask, se)
+        eroded_mask = binary_erosion(reduced_mask, se)
+        boundary_mask = dilated_mask ^ eroded_mask
         boundary_intensities = reduced_image[boundary_mask > 0]
         H = reduced_image[boundary_mask > 0]
-        IEr = reduced_image[eroded_mask > 0]
-        I_bound = np.mean(boundary_intensities)
+        I_bound = (boundary_intensities).mean()
         IBounds[c] = I_bound
 
         # cell seed information is retrieved as comparison
-        F2 = cell_seeds
+        F2 = cell_seeds.copy()
         F2[~mask] = 0
-        cpy, cpx = np.argwhere(F2 > 252)
-        ICentre = smoothed_image[cpy, cpx]
+        cpy, cpx = np.argwhere(F2 > TWO_FIVE_TWO).T
+        ICentre = smoothed_image[cpy, cpx][0]
 
-        I_bound_max = 255 * I_bound_max_pcnt
+        I_bound_max = TWO_FIVE_FIVE * I_bound_max_pcnt
 
         # Figure out which conditions make the label invalid
         # 1. I_bound_max, gives the Lower bound to the mean intensity
@@ -172,16 +175,16 @@ def unlabel_poor_seeds_in_frame(
 
             # record the removal decisions
             if first_condition:
-                decisions[1] = decisions[1] + 1
+                decisions[1] += 1
             elif second_condition:
-                decisions[2] = decisions[2] + 1
+                decisions[2] += 1
             elif third_condition:
-                decisions[3] = decisions[3] + 1
+                decisions[3] += 1
             elif fourth_condition:
-                decisions[4] = decisions[4] + 1
+                decisions[4] += 1
             else:
                 # should not happen
-                decisions[5] = decisions[5] + 1
+                decisions[5] += 1
 
 
 def delabel_very_large_areas(
@@ -207,6 +210,7 @@ def merge_seeds_from_labels(
     image: npt.NDArray[np.uint8],
     cell_seeds: npt.NDArray[np.uint8],
     cell_labels: npt.NDArray[np.uint16],
+    se: npt.NDArray[np.uint8],
     merge_criteria: float,
     sigma_3: float,
 ) -> None:
@@ -214,7 +218,7 @@ def merge_seeds_from_labels(
     Remove initial cell regions which touch & whose boundary is insufficient
     """
     # smoothing
-    if sigma_3 > 0.01:
+    if sigma_3 > SIGMA_BOUND:
         f1 = _matlab_style_gauss2D(image.shape, sigma_3)
         smoothed_image = np.fft.fftshift(
             np.fft.ifft2(np.fft.fft2(image) * np.fft.fft2(f1))
@@ -226,7 +230,7 @@ def merge_seeds_from_labels(
     label_list = label_list[label_list != 0]
     c = 1
 
-    merge_intensity_distro = []
+    merge_intensity_distro: list = []
     merge_decisions = 0
 
     # loop over labels
@@ -234,7 +238,7 @@ def merge_seeds_from_labels(
         label_mask = cell_labels == label_list[c]
         label = label_list[c]
 
-        cpy, cpx = np.argwhere(label_mask > 0)
+        cpy, cpx = np.argwhere(label_mask > 0).T
 
         # find region of that label
         minx = np.min(cpx)
@@ -252,15 +256,15 @@ def merge_seeds_from_labels(
         reduced_labels = cell_labels[miny:maxy, minx:maxx]
 
         # now find boundaries
-        dilated_mask = imdilate(reduced_label_mask, se)
-        eroded_mask = imerode(reduced_label_mask, se)
+        dilated_mask = binary_dilation(reduced_label_mask, se)
+        eroded_mask = binary_erosion(reduced_label_mask, se)
         border_mask = dilated_mask - eroded_mask
         border_intensities = reduced_image[border_mask > 0]
         central_intensity = reduced_image[eroded_mask > 0]
 
         F2 = cell_seeds
         F2[~label_mask] = 0
-        cpy, cpx = np.argwhere(F2 > 253)
+        cpy, cpx = np.argwhere(F2 > TWO_FIVE_THREE).T
         ICentre = smoothed_image[cpy, cpx]
 
         background_std = np.std(central_intensity.astype(float))
@@ -269,13 +273,13 @@ def merge_seeds_from_labels(
         neighbour_labels = np.unique(reduced_labels[dilated_mask > 0])
         neighbour_labels = neighbour_labels[neighbour_labels != label]
 
-        low_intensity_ratios = []
+        low_intensity_ratios: list = []
         for i in range(len(neighbour_labels)):
             neighb_label = neighbour_labels(i)
             neighbor_border = dilated_mask
             # slice of neighbour around cell
             neighbor_border[reduced_labels != neighb_label] = 0
-            cell_border = imdilate(neighbor_border, se)
+            cell_border = binary_dilation(neighbor_border, se)
             # slice of cell closest to neighbour
             cell_border[reduced_labels != label] = 0
 
@@ -336,8 +340,8 @@ def merge_labels(
     Il1[~m1] = 0
     Il2 = Il
     Il2[~m2] = 0
-    cpy1, cpx1 = np.argwhere(Il1 > 253)
-    cpy2, cpx2 = np.argwhere(Il2 > 253)
+    cpy1, cpx1 = np.argwhere(Il1 > TWO_FIVE_THREE).T
+    cpy2, cpx2 = np.argwhere(Il2 > TWO_FIVE_THREE).T
     cpx = round((cpx1 + cpx2) / 2)
     cpy = round((cpy1 + cpy2) / 2)
 
@@ -345,11 +349,11 @@ def merge_labels(
     cell_seeds[cpy1, cpx1] = 20
     cell_seeds[cpy2, cpx2] = 20
     if (cell_labels[cpy, cpx] == l1) | (cell_labels[cpy, cpx] == l2):
-        cell_seeds[cpy, cpx] = 255
+        cell_seeds[cpy, cpx] = TWO_FIVE_FIVE
     elif np.sum(m1) > np.sum(m2):
-        cell_seeds[cpy1, cpx1] = 255
+        cell_seeds[cpy1, cpx1] = TWO_FIVE_FIVE
     else:
-        cell_seeds[cpy2, cpx2] = 255
+        cell_seeds[cpy2, cpx2] = TWO_FIVE_FIVE
 
     Cl[m2] = l1
     cell_labels = Cl
@@ -367,20 +371,8 @@ def neutralise_pts_not_under_label_in_frame(
     """
     cell_seeds_copy = cell_seeds.copy()
     cell_seeds_copy[cell_labels != 0] = 0
-    cell_seeds[cell_seeds_copy > 252] = 253
+    cell_seeds[cell_seeds_copy > TWO_FIVE_TWO] = TWO_FIVE_THREE
     return cell_seeds
-
-
-def growcellsfromseeds3():
-    pass
-
-
-def findcellsfromregiongrowing():
-    pass
-
-
-def calculateCellPositions():
-    pass
 
 
 def _matlab_style_gauss2D(shape: tuple[int, ...], sigma: float):

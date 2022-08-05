@@ -1,8 +1,10 @@
 from pathlib import Path
 
 from scipy import io as sio
+from skimage.morphology import disk
 
 from segment_image import segment_image
+from utils import unlabel_poor_seeds_in_frame
 
 _file_location = Path(__file__).resolve()
 _matfile = _file_location.parent / "ProjIm.mat"
@@ -32,4 +34,8 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    se = disk(2)
+    Im = sio.loadmat(_file_location.parent / "Im.mat")["Im"]
+    CellSeeds = sio.loadmat(_file_location.parent / "CellSeeds.mat")["CellSeeds"]
+    CellLabels = sio.loadmat(_file_location.parent / "CellLabels.mat")["CellLabels"]
+    unlabel_poor_seeds_in_frame(Im, CellSeeds, CellLabels, se, 20, 0.5, 0.1),

@@ -3,6 +3,8 @@ import numpy.typing as npt
 from skimage.measure import regionprops
 from skimage.morphology import binary_dilation, binary_erosion
 
+from calculate_cell_positions import calculate_cell_positions
+
 SIGMA_BOUND = 0.01
 # TODO: work out what these are for and give better names
 TWO_FIVE_FIVE = 255
@@ -69,7 +71,7 @@ def do_initial_seeding(
     delabel_very_large_areas(cell_labels, large_cell_size_thres)
 
     # Use true centre of cells as labels
-    centroids = np.round(calculateCellPositions(smoothed_image, cell_labels, False))
+    centroids = np.round(calculate_cell_positions(smoothed_image, cell_labels, False))
     centroids = centroids[~np.isnan(centroids.T[0])]
     for n in range(len(centroids)):
         smoothed_image[centroids[n, 1], centroids[n, 0]] = TWO_FIVE_FIVE

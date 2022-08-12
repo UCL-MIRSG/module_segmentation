@@ -31,6 +31,8 @@ def calculate_cell_positions(
                 # every so often the centroid is actually not in the label!
                 _place_at_lowest_int(pos, image, sx, sy, n)
 
+    return pos
+
 
 def _place_at_centroid(pos, image, sx, sy, n) -> None:
     """
@@ -47,6 +49,7 @@ def _place_at_centroid(pos, image, sx, sy, n) -> None:
 
     pos[n, 1] = round(sum_y / sum_I)
     pos[n, 0] = round(sum_x / sum_I)
+    return pos
 
 
 def _place_at_lowest_int(pos, image, sx, sy, n) -> None:

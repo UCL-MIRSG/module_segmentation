@@ -1,1 +1,3 @@
 napari
+numpy==1.23.2
+scikit-image==2.8.5

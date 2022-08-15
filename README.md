@@ -13,7 +13,7 @@ To know more about the segmentation routine check out our wiki page: [epitools.g
 load('ProjIm.mat')
 
 %% crop image for testing (right click -> "Crop Image")
-[crop, rect] = imcrop(ProjIm,[]);
+[crop, rect] = imcrop(ProjIm);
 close();
 
 %% compute segmentation and output segmentation feedback

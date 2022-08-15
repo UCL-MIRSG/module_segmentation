@@ -1,6 +1,5 @@
 __pycache__
-!ProjIm.mat
-!zerogreen.mat
 .envrc
 *.asv
+*.mat
 *.mat

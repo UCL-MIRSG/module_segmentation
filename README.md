@@ -33,4 +33,4 @@ verbose=1;  % segmentation feedback plot
 
 with `verbose=1` you can obtain a feedback visualization like this
 
-![Segmentation feedback](ProjIm_feedback.png)
+![Segmentation feedback](projected_image_feedback.png)

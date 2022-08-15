@@ -15,14 +15,14 @@ def calculate_cell_positions(
 
     pos = np.zeros((no_cells, 2))
 
-    I2 = TWO_FIVE_FIVE - image
+    subtracted_image = TWO_FIVE_FIVE - image
 
     for n in range(no_cells):
 
         sy, sx = np.argwhere(labelled_cells == n).T
 
         if type:
-            _place_at_lowest_int(pos, I2, sx, sy, n)
+            _place_at_lowest_int(pos, subtracted_image, sx, sy, n)
 
         else:
             _place_at_centroid(pos, image, sx, sy, n)

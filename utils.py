@@ -23,6 +23,10 @@ def _local_minima_seeded_watershed(
     See also
     --------
     https://scikit-image.org/docs/dev/auto_examples/segmentation/plot_watershed.html
+
+    Taken from
+    --------
+    https://github.com/haesleinhuepf/napari-segment-blobs-and-things-with-membranes/blob/main/napari_segment_blobs_and_things_with_membranes/__init__.py
     """
     spot_blurred = gaussian(image, sigma=spot_sigma)
 
@@ -55,6 +59,10 @@ def thresholded_local_minima_seeded_watershed(
     the hood, this filter applies two Gaussian blurs, local minima detection and
     a seeded watershed. Afterwards, all objects are removed that have an average
     intensity below a given minimum_intensity
+
+    Taken from
+    --------
+    https://github.com/haesleinhuepf/napari-segment-blobs-and-things-with-membranes/blob/main/napari_segment_blobs_and_things_with_membranes/__init__.py
     """
     labels, seeds = _local_minima_seeded_watershed(
         image, spot_sigma=spot_sigma, outline_sigma=outline_sigma

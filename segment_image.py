@@ -2,7 +2,7 @@ import numpy as np
 import numpy.typing as npt
 from skimage.io import imread
 
-from utils import thresholded_local_minima_seeded_watershed
+from utils import thresholded_local_minima_seeded_watershed, unlabel_poor_seeds_in_frame
 
 
 def segment_image(
@@ -10,6 +10,7 @@ def segment_image(
     spot_sigma: float = 3,
     outline_sigma: float = 0,
     minimum_intensity: float = 30,
+    min_seed_boundary_ratio: float = 0.1,
 ) -> None:
     """
     read in the projected image and segment it
@@ -19,6 +20,14 @@ def segment_image(
         spot_sigma=spot_sigma,
         outline_sigma=outline_sigma,
         minimum_intensity=minimum_intensity,
+    )
+    labels, seeds = unlabel_poor_seeds_in_frame(
+        projected_image,
+        labels,
+        seeds,
+        outline_sigma=outline_sigma,
+        minimum_intensity=minimum_intensity,
+        min_seed_boundary_ratio=min_seed_boundary_ratio,
     )
     np.testing.assert_equal(seeds.sum(), 140)
     print()

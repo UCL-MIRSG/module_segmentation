@@ -12,8 +12,8 @@ TWO_FIVE_TWO = 252
 
 def unlabel_poor_seeds_in_frame(
     image: npt.NDArray[np.uint8],
+    seeds: list[tuple[float, float]],
     labels: npt.NDArray[np.uint32],
-    seeds: npt.NDArray[np.bool_],
     *,
     outline_sigma: float,
     minimum_intensity: float,
@@ -100,8 +100,8 @@ def unlabel_poor_seeds_in_frame(
 
 
 def _local_minima_seeded_watershed(
-    image: npt.NDArray[np.uint8], *, spot_sigma: float, outline_sigma
-) -> tuple[npt.NDArray[np.int32], npt.NDArray[np.bool_]]:
+    image: npt.NDArray[np.uint8], *, spot_sigma: float, outline_sigma: float
+) -> tuple[npt.NDArray[np.int32], npt.NDArray[np.int32]]:
     """
     Segment cells in images with fluorescently marked membranes.
 
@@ -121,9 +121,7 @@ def _local_minima_seeded_watershed(
     """
     spot_blurred = gaussian(image, sigma=spot_sigma)
 
-    seeds = local_minima(spot_blurred)
-
-    spots = label(seeds)
+    spots = label(local_minima(spot_blurred))
 
     outline_blurred = (
         spot_blurred
@@ -131,7 +129,7 @@ def _local_minima_seeded_watershed(
         else gaussian(image, sigma=outline_sigma)
     )
 
-    return watershed(outline_blurred, spots), seeds
+    return spots, watershed(outline_blurred, spots)
 
 
 def thresholded_local_minima_seeded_watershed(
@@ -140,7 +138,7 @@ def thresholded_local_minima_seeded_watershed(
     spot_sigma: float,
     outline_sigma: float,
     minimum_intensity: float,
-) -> tuple[npt.NDArray[np.uint32], npt.NDArray[np.bool_]]:
+) -> tuple[list[tuple[float, float]], npt.NDArray[np.uint32]]:
     """
     Segment cells in images with marked membranes that have a high signal intensity.
 
@@ -155,9 +153,13 @@ def thresholded_local_minima_seeded_watershed(
     --------
     https://github.com/haesleinhuepf/napari-segment-blobs-and-things-with-membranes/blob/main/napari_segment_blobs_and_things_with_membranes/__init__.py
     """
-    labels, seeds = _local_minima_seeded_watershed(
+    spots, labels = _local_minima_seeded_watershed(
         image, spot_sigma=spot_sigma, outline_sigma=outline_sigma
     )
+
+    # get seeds
+    spots_stats = regionprops(spots)
+    seeds = [r.centroid for r in spots_stats]
 
     # measure intensities
     stats = regionprops(labels, image)
@@ -170,4 +172,4 @@ def thresholded_local_minima_seeded_watershed(
     new_label_indices = np.insert(new_label_indices, 0, 0)
     new_labels = np.take(np.asarray(new_label_indices, np.uint32), labels)
 
-    return new_labels, seeds
+    return seeds, new_labels

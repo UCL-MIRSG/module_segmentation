@@ -15,16 +15,16 @@ def segment_image(
     """
     read in the projected image and segment it
     """
-    labels, seeds = thresholded_local_minima_seeded_watershed(
+    seeds, labels = thresholded_local_minima_seeded_watershed(
         projected_image,
         spot_sigma=spot_sigma,
         outline_sigma=outline_sigma,
         minimum_intensity=minimum_intensity,
     )
-    labels, seeds = unlabel_poor_seeds_in_frame(
+    seeds, labels = unlabel_poor_seeds_in_frame(
         projected_image,
-        labels,
         seeds,
+        labels,
         outline_sigma=outline_sigma,
         minimum_intensity=minimum_intensity,
         min_seed_boundary_ratio=min_seed_boundary_ratio,
